@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PETiS Lab Reporter v2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--teal:#0d9488;--teal-dark:#0f766e;--teal-deeper:#134e4a;--teal-light:#e6fffa;--line:#06C755;--border:#e2e8f0;--bg:#f0fdfb;--surface:#ffffff;--text:#0f172a;--muted:#64748b;--shadow:0 1px 3px rgba(0,0,0,0.08),0 4px 12px rgba(0,0,0,0.06);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans Thai','Sarabun',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;}
+.app-bar{background:linear-gradient(135deg,var(--teal-deeper),var(--teal-dark) 60%,#0891b2);color:white;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(13,148,136,0.3);}
+.app-bar-left{display:flex;align-items:center;gap:12px;}
+.app-logo{width:40px;height:40px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;}
+.app-bar h1{font-size:1.05rem;font-weight:700;}.app-bar p{font-size:0.75rem;opacity:0.75;}
+.ver{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);padding:4px 12px;border-radius:20px;font-size:0.72rem;font-weight:500;}
+.layout{display:grid;grid-template-columns:minmax(380px,1fr) minmax(300px,480px);min-height:calc(100vh - 56px);}
+.form-panel{padding:20px;background:white;border-right:1px solid var(--border);overflow-y:auto;}
+.preview-panel{background:var(--bg);padding:20px;display:flex;flex-direction:column;align-items:center;gap:14px;}
+.card{background:white;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow);}
+.card-label{font-size:0.7rem;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.col2{grid-column:1/-1;}
+.fg{display:flex;flex-direction:column;gap:4px;}
+label{font-size:0.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;}
+input,select,textarea{padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.88rem;font-family:inherit;color:var(--text);background:white;transition:border-color 0.15s,box-shadow 0.15s;width:100%;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(13,148,136,0.12);}
+/* Upload */
+.drop-zone{border:2px dashed #cbd5e1;border-radius:10px;padding:14px;cursor:pointer;transition:all 0.2s;background:#f8fafc;min-height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;text-align:center;}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--teal);background:var(--teal-light);}
+.drop-zone .hint{font-size:0.8rem;color:var(--muted);}
+/* Multi-thumb strip */
+.img-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.img-thumb{position:relative;width:88px;height:68px;border-radius:6px;overflow:hidden;border:1.5px solid var(--border);}
+.img-thumb img{width:100%;height:100%;object-fit:cover;}
+.img-del{position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.65);color:white;border:none;border-radius:4px;width:18px;height:18px;font-size:0.62rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+/* AI button */
+.btn-ai{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;padding:8px 16px;border-radius:8px;font-family:inherit;font-size:0.82rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;}
+.btn-ai:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,0.4);}
+.btn-ai:disabled{opacity:0.55;cursor:not-allowed;transform:none;}
+.ai-status{font-size:0.76rem;color:#6366f1;margin-top:5px;min-height:18px;}
+/* Params table */
+.params-wrap{overflow-x:auto;margin-bottom:10px;}
+.ptbl{width:100%;border-collapse:collapse;font-size:0.8rem;}
+.ptbl th{background:var(--teal-light);color:var(--teal-dark);padding:6px 8px;text-align:left;font-weight:700;font-size:0.7rem;}
+.ptbl td{padding:4px 5px;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+.ptbl input,.ptbl select{padding:4px 6px;font-size:0.78rem;border-radius:5px;}
+.ptbl input[type=number]{width:72px;}.ptbl .nf{min-width:110px;}.ptbl .rf{min-width:80px;}.ptbl .uf{width:58px;}
+/* Badges */
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:2px 7px;border-radius:20px;font-size:0.68rem;font-weight:800;min-width:30px;}
+.bH{background:#fee2e2;color:#b91c1c;}.bL{background:#dbeafe;color:#1d4ed8;}.bN{background:#dcfce7;color:#15803d;}
+.bPOS{background:#fee2e2;color:#b91c1c;}.bNEG{background:#dcfce7;color:#15803d;}.bEQ{background:#fef3c7;color:#b45309;}.bNA{background:#f1f5f9;color:#94a3b8;}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:none;border-radius:8px;font-family:inherit;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.15);}.btn:active{transform:none;}
+.bteal{background:var(--teal);color:white;}.bteal:hover{background:var(--teal-dark);}
+.bline{background:var(--line);color:white;}.bline:hover{background:#05a847;}
+.bghost{background:white;color:var(--teal);border:1.5px solid var(--teal);}.bghost:hover{background:var(--teal-light);}
+.bsm{padding:5px 12px;font-size:0.78rem;}.bdanger{background:#fee2e2;color:#dc2626;padding:3px 7px;font-size:0.7rem;border-radius:5px;}
+/* Preview */
+.prev-label{width:100%;text-align:center;font-size:0.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;}
+.prev-frame{width:100%;max-width:440px;background:white;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.12),0 0 0 1px rgba(0,0,0,0.05);overflow:hidden;}
+.action-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%;max-width:440px;}
+/* LINE panel */
+.line-panel{width:100%;max-width:440px;background:white;border:1.5px solid #86efac;border-radius:12px;padding:16px;display:none;}
+.line-panel.open{display:block;}
+.line-title{font-size:0.8rem;font-weight:700;color:#15803d;margin-bottom:12px;}
+.line-guide{margin-top:12px;padding:10px 12px;background:#f0fdf4;border-radius:8px;font-size:0.75rem;color:#166534;line-height:1.8;}
+.line-status{text-align:center;font-size:0.82rem;margin-top:8px;}
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;padding:11px 18px;border-radius:10px;background:var(--teal-deeper);color:white;font-size:0.85rem;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:9999;opacity:0;transform:translateY(8px);transition:all 0.25s;pointer-events:none;max-width:320px;}
+.toast.show{opacity:1;transform:none;}.tok{background:#15803d;}.terr{background:#dc2626;}
+/* ====== LAB CARD (captured) ====== */
+#lab-card{width:800px;background:#fff;font-family:'IBM Plex Sans Thai','Sarabun',sans-serif;color:#0f172a;transform-origin:top left;}
+.lch{background:linear-gradient(135deg,#134e4a,#0d9488 55%,#0891b2);color:white;padding:22px 28px;display:flex;align-items:center;justify-content:space-between;}
+.lch-l{display:flex;align-items:center;gap:16px;}
+.lc-logo{width:56px;height:56px;background:rgba(255,255,255,0.18);border:2px solid rgba(255,255,255,0.3);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:2rem;}
+.lc-hosp{font-size:1.2rem;font-weight:700;}.lc-sub{font-size:0.85rem;opacity:0.8;margin-top:2px;}
+.lc-date{text-align:right;}.lc-date-l{font-size:0.72rem;opacity:0.7;margin-bottom:2px;}.lc-date-v{font-size:1.05rem;font-weight:700;}
+.lc-pt{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;background:#f8fafc;border-bottom:2px solid #e2e8f0;}
+.lc-pti{padding:12px 20px;border-right:1px solid #e2e8f0;}.lc-pti:last-child{border-right:none;}
+.lc-ptl{font-size:0.68rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;}
+.lc-ptv{font-size:0.95rem;font-weight:700;}
+.lc-type{background:#0d9488;color:white;padding:8px 20px;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:8px;}
+/* Multi-image grid in card */
+.lc-imgs{padding:14px 20px 10px;border-bottom:1px solid #f1f5f9;}
+.lc-img-grid{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+.lc-img-grid img{border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);flex:1;min-width:0;}
+.lc-img-lbl{font-size:0.7rem;color:#94a3b8;margin-top:6px;text-align:center;}
+.lc-params{padding:16px 20px;}
+.lc-pt-title{font-size:0.7rem;font-weight:700;color:#0d9488;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px;}
+.lctbl{width:100%;border-collapse:collapse;font-size:0.88rem;}
+.lctbl th{background:#f1f5f9;padding:8px 14px;text-align:left;font-size:0.72rem;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;}
+.lctbl td{padding:8px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+.lctbl tr:nth-child(even) td{background:#fafbfc;}
+.tn{font-weight:600;font-size:0.9rem;}.tv{font-weight:800;font-size:1rem;}.tu{color:#94a3b8;font-size:0.78rem;}.tr{color:#94a3b8;font-size:0.8rem;}
+.lcf{display:inline-block;padding:2px 10px;border-radius:20px;font-size:0.72rem;font-weight:800;}
+.lcH{background:#fee2e2;color:#b91c1c;}.lcL{background:#dbeafe;color:#1d4ed8;}.lcN{background:#dcfce7;color:#15803d;}
+.lcPOS{background:#fee2e2;color:#b91c1c;}.lcNEG{background:#dcfce7;color:#15803d;}.lcEQ{background:#fef3c7;color:#b45309;}.lcNA{background:#f1f5f9;color:#94a3b8;}
+.lc-notes{margin:0 20px 16px;padding:12px 16px;background:#fffbeb;border-left:3px solid #fbbf24;border-radius:0 8px 8px 0;}
+.lc-nl{font-size:0.68rem;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;}
+.lc-nt{font-size:0.88rem;white-space:pre-wrap;}
+.lc-footer{background:#f8fafc;border-top:1px solid #e2e8f0;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;font-size:0.75rem;color:#64748b;}
+.lc-disc{font-style:italic;}.lc-brand{color:#0d9488;font-weight:700;}
+@media(max-width:860px){.layout{grid-template-columns:1fr;}.form-panel{border-right:none;border-bottom:1px solid var(--border);}}
+</style>
+</head>
+<body>
+
+<div class="app-bar">
+  <div class="app-bar-left">
+    <div class="app-logo">🐾</div>
+    <div><h1>PETiS Lab Reporter</h1><p>สร้างใบรายงานผล Lab · ส่ง LINE · Attach DRx</p></div>
+  </div>
+  <div class="ver">v2.0</div>
+</div>
+
+<div class="layout">
+<div class="form-panel">
+
+  <div class="card">
+    <div class="card-label">🐾 ข้อมูลผู้ป่วย</div>
+    <div class="grid-2">
+      <div class="fg"><label>ชื่อสัตว์</label><input type="text" id="pet-name" placeholder="มะม่วง" oninput="sync()"></div>
+      <div class="fg"><label>ชนิดสัตว์</label>
+        <select id="species" onchange="onSp()">
+          <option value="dog">🐕 สุนัข</option><option value="cat">🐈 แมว</option>
+          <option value="rabbit">🐇 กระต่าย</option><option value="exotic">🦜 Exotic</option><option value="other">อื่นๆ</option>
+        </select></div>
+      <div class="fg"><label>เพศ</label>
+        <select id="sex" onchange="sync()">
+          <option>ผู้ (Male)</option><option>เมีย (Female)</option><option>ผู้ทำหมัน (MN)</option><option>เมียทำหมัน (FS)</option>
+        </select></div>
+      <div class="fg"><label>สายพันธุ์</label><input type="text" id="breed" placeholder="Mixed Breed" oninput="sync()"></div>
+      <div class="fg"><label>ชื่อเจ้าของ</label><input type="text" id="owner" placeholder="คุณสมหญิง สุขดี" oninput="sync()"></div>
+      <div class="fg"><label>HN / เลขผู้ป่วย</label><input type="text" id="hn" placeholder="HN-00001" oninput="sync()"></div>
+      <div class="fg"><label>วันที่ตรวจ</label><input type="date" id="exam-date" oninput="sync()"></div>
+      <div class="fg"><label>สัตวแพทย์ผู้ตรวจ</label><input type="text" id="vet" placeholder="นสพ./สพ.ญ. ..." oninput="sync()"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">🔬 ประเภทการตรวจ</div>
+    <div class="fg"><label>เลือก Lab Type</label>
+      <select id="lab-type" onchange="loadPreset()">
+        <option value="cbc">CBC — ความสมบูรณ์ของเม็ดเลือด</option>
+        <option value="chem">Chemistry — เคมีในเลือด</option>
+        <option value="blood_gas">Blood Gas — ก๊าซในเลือด</option>
+        <option value="serology">Serology — Ag / Ab Test</option>
+        <option value="titer">Titer Test</option>
+        <option value="hormone">Hormone Assay</option>
+        <option value="pcr">PCR Test</option>
+        <option value="ua">Urinalysis (UA)</option>
+        <option value="other">อื่นๆ (Custom)</option>
+      </select></div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">📷 รูปผล Lab <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;">(เลือกได้หลายรูป)</span></div>
+    <div class="drop-zone" id="drop-zone"
+      onclick="document.getElementById('img-input').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="onDrop(event)">
+      <div style="font-size:1.6rem;opacity:0.45">🖼️</div>
+      <div class="hint">คลิกหรือลากรูปมาวาง — เลือกหลายรูปพร้อมกันได้</div>
+      <div class="hint" style="font-size:0.7rem">รองรับ JPG, PNG</div>
+    </div>
+    <input type="file" id="img-input" accept="image/*" multiple style="display:none" onchange="onImgUpload(event)">
+    <div class="img-strip" id="img-strip"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+      <button class="btn bghost bsm" onclick="document.getElementById('img-input').click()">📁 เพิ่มรูป</button>
+      <button class="btn bsm" style="background:#f1f5f9;color:#64748b;border:none;" onclick="clearImgs()">✕ ลบทั้งหมด</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">📋 ค่าผลการตรวจ</div>
+    <div class="params-wrap">
+      <table class="ptbl">
+        <thead><tr>
+          <th style="min-width:120px">รายการ</th><th style="min-width:80px">ผล</th>
+          <th style="min-width:60px">หน่วย</th><th style="min-width:88px">ค่าอ้างอิง</th>
+          <th style="width:50px">Flag</th><th style="width:32px"></th>
+        </tr></thead>
+        <tbody id="params-body"></tbody>
+      </table>
+    </div>
+    <button class="btn bghost bsm" onclick="addRow()">+ เพิ่มรายการ</button>
+  </div>
+
+  <div class="card">
+    <div class="card-label">📝 หมายเหตุ / ความเห็นสัตวแพทย์</div>
+    <textarea id="notes" rows="3" style="width:100%;resize:vertical;" placeholder="เช่น ควรนัดตรวจซ้ำใน 2 สัปดาห์..." oninput="sync()"></textarea>
+  </div>
+
+</div>
+
+<div class="preview-panel">
+  <div class="prev-label">👁 Live Preview — ใบรายงานผล</div>
+  <div class="prev-frame" id="prev-frame">
+    <div id="lab-card">
+      <div class="lch">
+        <div class="lch-l">
+          <div class="lc-logo">🐾</div>
+          <div><div class="lc-hosp">PETiS Animal Hospital</div><div class="lc-sub">ผลการตรวจทางห้องปฏิบัติการ</div></div>
+        </div>
+        <div class="lc-date"><div class="lc-date-l">วันที่ตรวจ</div><div class="lc-date-v" id="c-date">—</div></div>
+      </div>
+      <div class="lc-pt">
+        <div class="lc-pti"><div class="lc-ptl">ชื่อสัตว์</div><div class="lc-ptv" id="c-name">—</div></div>
+        <div class="lc-pti"><div class="lc-ptl">ชนิด / เพศ / พันธุ์</div><div class="lc-ptv" id="c-sp">—</div></div>
+        <div class="lc-pti"><div class="lc-ptl">เจ้าของ</div><div class="lc-ptv" id="c-owner">—</div></div>
+        <div class="lc-pti"><div class="lc-ptl">HN · สัตวแพทย์</div><div class="lc-ptv" id="c-hn">—</div></div>
+      </div>
+      <div class="lc-type">🔬 <span id="c-type">—</span></div>
+      <div class="lc-imgs" id="c-imgs" style="display:none">
+        <div class="lc-img-grid" id="c-img-grid"></div>
+        <div class="lc-img-lbl">ภาพผลการตรวจจากเครื่อง</div>
+      </div>
+      <div class="lc-params">
+        <div class="lc-pt-title">ผลการตรวจ</div>
+        <table class="lctbl">
+          <thead><tr>
+            <th style="width:35%">รายการ</th><th style="width:18%">ผล</th>
+            <th style="width:13%">หน่วย</th><th style="width:22%">ค่าอ้างอิง</th><th style="width:12%">Flag</th>
+          </tr></thead>
+          <tbody id="c-params"></tbody>
+        </table>
+      </div>
+      <div class="lc-notes" id="c-notes" style="display:none">
+        <div class="lc-nl">📝 หมายเหตุ</div>
+        <div class="lc-nt" id="c-notes-txt"></div>
+      </div>
+      <div class="lc-footer">
+        <div class="lc-disc">* กรุณาปรึกษาสัตวแพทย์สำหรับการแปลผลและการรักษา</div>
+        <div class="lc-brand">🐾 PETiS Animal Hospital</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button class="btn bteal" onclick="doDownload()">⬇ Download JPG</button>
+    <button class="btn bline" onclick="toggleLine()">💬 ส่งผ่าน LINE</button>
+  </div>
+
+  <div class="line-panel" id="line-panel">
+    <div class="line-title">💬 ส่งผ่าน LINE Messaging API</div>
+    <div class="grid-2">
+      <div class="fg col2"><label>LINE User ID ของเจ้าของสัตว์</label>
+        <input type="text" id="line-uid" placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"></div>
+      <div class="fg col2"><label>Channel Access Token</label>
+        <input type="password" id="line-token" placeholder="วาง token จาก LINE Developers Console" oninput="saveTok()"></div>
+      <div class="fg col2"><label>imgbb API Key <span style="font-weight:400;color:#94a3b8;">(ฟรี)</span></label>
+        <input type="text" id="imgbb-key" placeholder="รับฟรีที่ api.imgbb.com" oninput="saveIbb()"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+      <button class="btn bline" onclick="doSendLine()">📤 ส่ง LINE ทันที</button>
+      <button class="btn bghost bsm" onclick="window.open('https://developers.line.biz/console/','_blank')">🔗 LINE Console</button>
+      <button class="btn bghost bsm" onclick="window.open('https://api.imgbb.com/','_blank')">🔗 imgbb</button>
+    </div>
+    <div class="line-guide">
+      <strong>วิธีดู LINE User ID ของเจ้าของ:</strong><br>
+      LINE OA Manager → แชท → คลิกแชทของเจ้าของ → ดู URL บน browser<br>
+      ส่วนหลัง <code>/chat/</code> คือ User ID เช่น <code>Ue859c4a0f966...</code>
+    </div>
+    <div class="line-status" id="line-status"></div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const P={
+  cbc:{label:"CBC (ProCyte Dx) — ความสมบูรณ์ของเม็ดเลือด",rows:[
+    {n:"RBC",u:"M/µL",r:{dog:"5.65-8.87",cat:"5.00-10.00",o:"—"},t:"num"},
+    {n:"HCT",u:"%",r:{dog:"37.3-61.7",cat:"24.0-45.0",o:"—"},t:"num"},
+    {n:"HGB",u:"g/dL",r:{dog:"13.1-20.5",cat:"8.0-15.0",o:"—"},t:"num"},
+    {n:"MCV",u:"fL",r:{dog:"61.6-73.5",cat:"38.0-52.0",o:"—"},t:"num"},
+    {n:"MCH",u:"pg",r:{dog:"21.2-25.9",cat:"12.5-17.5",o:"—"},t:"num"},
+    {n:"MCHC",u:"g/dL",r:{dog:"32.0-37.9",cat:"30.0-36.0",o:"—"},t:"num"},
+    {n:"RDW",u:"%",r:{dog:"13.6-21.7",cat:"14.0-18.0",o:"—"},t:"num"},
+    {n:"%RETIC",u:"%",r:{dog:"—",cat:"—",o:"—"},t:"num"},
+    {n:"RETIC",u:"K/µL",r:{dog:"10.0-110.0",cat:"3.0-50.0",o:"—"},t:"num"},
+    {n:"RETIC-HGB",u:"pg",r:{dog:"22.3-29.6",cat:"—",o:"—"},t:"num"},
+    {n:"WBC",u:"K/µL",r:{dog:"5.05-16.76",cat:"5.50-19.50",o:"—"},t:"num"},
+    {n:"%NEU",u:"%",r:{dog:"—",cat:"—",o:"—"},t:"num"},
+    {n:"%LYM",u:"%",r:{dog:"—",cat:"—",o:"—"},t:"num"},
+    {n:"%MONO",u:"%",r:{dog:"—",cat:"—",o:"—"},t:"num"},
+    {n:"%EOS",u:"%",r:{dog:"—",cat:"—",o:"—"},t:"num"},
+    {n:"%BASO",u:"%",r:{dog:"—",cat:"—",o:"—"},t:"num"},
+    {n:"NEU",u:"K/µL",r:{dog:"2.95-11.64",cat:"2.50-12.50",o:"—"},t:"num"},
+    {n:"LYM",u:"K/µL",r:{dog:"1.05-5.10",cat:"1.50-7.00",o:"—"},t:"num"},
+    {n:"MONO",u:"K/µL",r:{dog:"0.16-1.12",cat:"0.05-0.67",o:"—"},t:"num"},
+    {n:"EOS",u:"K/µL",r:{dog:"0.06-1.23",cat:"0.07-1.52",o:"—"},t:"num"},
+    {n:"BASO",u:"K/µL",r:{dog:"0.00-0.10",cat:"0.00-0.10",o:"—"},t:"num"},
+    {n:"PLT",u:"K/µL",r:{dog:"148-484",cat:"150-600",o:"—"},t:"num"},
+    {n:"MPV",u:"fL",r:{dog:"8.7-13.2",cat:"—",o:"—"},t:"num"},
+    {n:"PDW",u:"fL",r:{dog:"9.1-19.4",cat:"—",o:"—"},t:"num"},
+    {n:"PCT",u:"%",r:{dog:"0.14-0.46",cat:"—",o:"—"},t:"num"},
+  ]},
+  chem:{label:"Chemistry (Catalyst One) — เคมีในเลือด",rows:[
+    {n:"GLU",u:"mg/dL",r:{dog:"74-143",cat:"64-170",o:"—"},t:"num"},
+    {n:"SDMA",u:"µg/dL",r:{dog:"0-14",cat:"0-14",o:"—"},t:"num"},
+    {n:"CREA",u:"mg/dL",r:{dog:"0.5-1.8",cat:"0.8-2.4",o:"—"},t:"num"},
+    {n:"BUN",u:"mg/dL",r:{dog:"7-27",cat:"14-36",o:"—"},t:"num"},
+    {n:"BUN/CREA",u:"",r:{dog:"—",cat:"—",o:"—"},t:"num"},
+    {n:"PHOS",u:"mg/dL",r:{dog:"2.5-6.8",cat:"2.4-8.2",o:"—"},t:"num"},
+    {n:"CA",u:"mg/dL",r:{dog:"7.9-12.0",cat:"7.8-11.3",o:"—"},t:"num"},
+    {n:"TP",u:"g/dL",r:{dog:"5.2-8.2",cat:"5.9-8.5",o:"—"},t:"num"},
+    {n:"ALB",u:"g/dL",r:{dog:"2.3-4.0",cat:"2.1-3.3",o:"—"},t:"num"},
+    {n:"GLOB",u:"g/dL",r:{dog:"2.5-4.5",cat:"2.8-5.1",o:"—"},t:"num"},
+    {n:"ALB/GLOB",u:"",r:{dog:"—",cat:"—",o:"—"},t:"num"},
+    {n:"ALT",u:"U/L",r:{dog:"10-125",cat:"10-100",o:"—"},t:"num"},
+    {n:"ALKP",u:"U/L",r:{dog:"23-212",cat:"0-55",o:"—"},t:"num"},
+    {n:"GGT",u:"U/L",r:{dog:"0-11",cat:"0-4",o:"—"},t:"num"},
+    {n:"TBIL",u:"mg/dL",r:{dog:"0.0-0.9",cat:"0.0-0.9",o:"—"},t:"num"},
+    {n:"CHOL",u:"mg/dL",r:{dog:"110-320",cat:"65-225",o:"—"},t:"num"},
+  ]},
+  blood_gas:{label:"Blood Gas — ก๊าซในเลือด",rows:[
+    {n:"pH",u:"",r:{dog:"7.35-7.45",cat:"7.35-7.45",o:"7.35-7.45"},t:"num"},
+    {n:"pCO2",u:"mmHg",r:{dog:"35-45",cat:"29-42",o:"35-45"},t:"num"},
+    {n:"pO2",u:"mmHg",r:{dog:"80-105",cat:"80-105",o:"80-105"},t:"num"},
+    {n:"HCO3-",u:"mEq/L",r:{dog:"18-26",cat:"17-24",o:"18-26"},t:"num"},
+    {n:"Base Excess (BE)",u:"mEq/L",r:{dog:"-4-+4",cat:"-4-+4",o:"-4-+4"},t:"num"},
+    {n:"SaO2",u:"%",r:{dog:"95-100",cat:"95-100",o:"95-100"},t:"num"},
+    {n:"Lactate",u:"mmol/L",r:{dog:"0-2.5",cat:"0-2.5",o:"0-2.5"},t:"num"},
+    {n:"Sodium (Na)",u:"mEq/L",r:{dog:"140-155",cat:"145-158",o:"—"},t:"num"},
+    {n:"Potassium (K)",u:"mEq/L",r:{dog:"3.5-5.8",cat:"3.4-5.6",o:"—"},t:"num"},
+    {n:"Ionized Ca (iCa)",u:"mmol/L",r:{dog:"1.12-1.40",cat:"1.12-1.40",o:"—"},t:"num"},
+    {n:"Glucose",u:"mg/dL",r:{dog:"70-120",cat:"70-150",o:"—"},t:"num"},
+  ]},
+  serology:{label:"Serology — Ag / Ab Test",rows:[
+    {n:"Antigen/Antibody",u:"",r:{dog:"Negative",cat:"Negative",o:"—"},t:"qual"},
+  ]},
+  titer:{label:"Titer Test",rows:[
+    {n:"Titer Result",u:"",r:{dog:"—",cat:"—",o:"—"},t:"text"},
+  ]},
+  hormone:{label:"Hormone Assay",rows:[
+    {n:"Total T4",u:"µg/dL",r:{dog:"1.0-4.0",cat:"0.8-4.0",o:"—"},t:"num"},
+    {n:"Free T4 (fT4)",u:"pmol/L",r:{dog:"6-30",cat:"10-50",o:"—"},t:"num"},
+    {n:"TSH",u:"ng/mL",r:{dog:"0.03-0.5",cat:"—",o:"—"},t:"num"},
+    {n:"Cortisol (basal)",u:"µg/dL",r:{dog:"0.5-6.0",cat:"0.5-5.0",o:"—"},t:"num"},
+    {n:"Cortisol (post-ACTH)",u:"µg/dL",r:{dog:"6-17",cat:"6-17",o:"—"},t:"num"},
+    {n:"Endogenous ACTH",u:"pg/mL",r:{dog:"10-110",cat:"10-85",o:"—"},t:"num"},
+    {n:"Insulin",u:"µIU/mL",r:{dog:"5-25",cat:"5-25",o:"—"},t:"num"},
+    {n:"Progesterone",u:"ng/mL",r:{dog:"—",cat:"—",o:"—"},t:"num"},
+  ]},
+  pcr:{label:"PCR Test",rows:[
+    {n:"PCR Result",u:"",r:{dog:"Negative",cat:"Negative",o:"—"},t:"qual"},
+  ]},
+  ua:{label:"Urinalysis (UA — IDEXX)",rows:[
+    {n:"Collection",u:"",opts:["","Free Catch","Cystocentesis","Catheterization","Other"],r:{dog:"—",cat:"—",o:"—"},t:"sel"},
+    {n:"Color",u:"",r:{dog:"Yellow/Straw",cat:"Yellow/Straw",o:"—"},t:"text"},
+    {n:"Specific Gravity (USG)",u:"",r:{dog:"1.015-1.050",cat:"1.020-1.060",o:"—"},t:"num"},
+    {n:"pH",u:"",r:{dog:"5.5-7.5",cat:"5.5-7.5",o:"—"},t:"num"},
+    {n:"LEU (Leukocyte)",u:"",r:{dog:"Negative",cat:"Negative",o:"—"},t:"qual"},
+    {n:"PRO (Protein)",u:"",r:{dog:"Negative",cat:"Negative",o:"—"},t:"qual"},
+    {n:"GLU (Glucose)",u:"",r:{dog:"Negative",cat:"Negative",o:"—"},t:"qual"},
+    {n:"KET (Ketone)",u:"",r:{dog:"Negative",cat:"Negative",o:"—"},t:"qual"},
+    {n:"UBG (Urobilinogen)",u:"",r:{dog:"Normal",cat:"Normal",o:"—"},t:"qual"},
+    {n:"BIL (Bilirubin)",u:"",r:{dog:"Negative",cat:"Negative",o:"—"},t:"qual"},
+    {n:"BLD (Blood)",u:"",r:{dog:"Negative",cat:"Negative",o:"—"},t:"qual"},
+    {n:"Sediment — Cast",u:"",r:{dog:"—",cat:"—",o:"—"},t:"text"},
+    {n:"Sediment — Cell",u:"",r:{dog:"—",cat:"—",o:"—"},t:"text"},
+    {n:"Sediment — Other",u:"",r:{dog:"—",cat:"—",o:"—"},t:"text"},
+    {n:"Sediment — Comment",u:"",r:{dog:"—",cat:"—",o:"—"},t:"text"},
+  ]},
+  other:{label:"อื่นๆ (Custom)",rows:[]}
+};
+
+
+let imgs=[], rows=[];
+
+window.onload=()=>{
+  document.getElementById('exam-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('line-token').value=localStorage.getItem('pt')||'';
+  document.getElementById('imgbb-key').value=localStorage.getItem('pi')||'';
+  loadPreset(); window.addEventListener('resize',rescale);
+};
+
+function spk(){const v=document.getElementById('species').value;return v==='dog'||v==='cat'?v:'o';}
+
+function loadPreset(){
+  const t=document.getElementById('lab-type').value, sp=spk();
+  rows=(P[t]||P.other).rows.map(r=>({n:r.n,v:'',u:r.u,ref:r.r[sp]||r.r.dog||'—',t:r.t,_r:r}));
+  renderTbl();sync();
+}
+
+function onSp(){
+  const sp=spk();
+  rows.forEach(r=>{if(r._r)r.ref=r._r.r[sp]||r._r.r.dog||'—';});
+  renderTbl();sync();
+}
+
+function renderTbl(){
+  const tb=document.getElementById('params-body');tb.innerHTML='';
+  rows.forEach((r,i)=>{
+    const f=flag(r),tr=document.createElement('tr');
+    if(r.t==='qual'){
+      tr.innerHTML=`<td><input class="nf" type="text" value="${e(r.n)}" onchange="sr(${i},'n',this.value)"></td>
+      <td><select onchange="sr(${i},'v',this.value)" style="min-width:88px">
+        <option value="" ${!r.v?'selected':''}>—</option>
+        ${['Negative','Positive','Equivocal','Trace','Reactive','Non-reactive'].map(x=>`<option value="${x}" ${r.v===x?'selected':''}>${x}</option>`).join('')}
+      </select></td>
+      <td><input class="uf" type="text" value="${e(r.u)}" onchange="sr(${i},'u',this.value)"></td>
+      <td><input class="rf" type="text" value="${e(r.ref)}" onchange="sr(${i},'ref',this.value)"></td>
+      <td><span id="f${i}">${bd(f)}</span></td><td><button class="bdanger" onclick="dr(${i})">✕</button></td>`;
+    } else {
+      const valInput = (r.t==='text')
+        ? `<input type="text" value="${e(r.v)}" oninput="sr(${i},'v',this.value)" style="min-width:90px" placeholder="—">`
+        : (r.t==='sel')
+          ? `<select onchange="sr(${i},'v',this.value)" style="min-width:90px">${(r.opts||[]).map(x=>`<option value="${x}" ${r.v===x?'selected':''}>${x}</option>`).join('')}</select>`
+          : `<input type="number" step="any" value="${r.v}" oninput="sr(${i},'v',this.value)" style="width:70px" placeholder="—">`;
+      tr.innerHTML=`<td><input class="nf" type="text" value="${e(r.n)}" onchange="sr(${i},'n',this.value)"></td>
+      <td>${valInput}</td>
+      <td><input class="uf" type="text" value="${e(r.u)}" onchange="sr(${i},'u',this.value)"></td>
+      <td><input class="rf" type="text" value="${e(r.ref)}" onchange="sr(${i},'ref',this.value)"></td>
+      <td><span id="f${i}">${bd(f)}</span></td><td><button class="bdanger" onclick="dr(${i})">✕</button></td>`;
+    }
+    tb.appendChild(tr);
+  });
+}
+
+function sr(i,k,val){rows[i][k]=val;const el=document.getElementById('f'+i);if(el)el.innerHTML=bd(flag(rows[i]));sync();}
+function addRow(){rows.push({n:'รายการใหม่',v:'',u:'',ref:'—',t:'text',_r:null});renderTbl();sync();}
+function dr(i){rows.splice(i,1);renderTbl();sync();}
+function e(s){return(s||'').replace(/"/g,'&quot;');}
+
+// Flag logic
+function flag(r){
+  if(r.t==='qual'){
+    if(!r.v)return 'NA';
+    const lv=r.v.toLowerCase();
+    if(lv==='positive'||lv==='reactive')return 'POS';
+    if(lv==='negative'||lv==='non-reactive')return 'NEG';
+    if(lv==='equivocal')return 'EQ'; return 'NA';
+  }
+  if(!r.v&&r.v!==0)return 'NA';
+  const val=parseFloat(r.v);if(isNaN(val))return 'NA';
+  const m=(r.ref||'').match(/([\d.]+)\s*[-]\s*([\d.]+)/);
+  if(m){const lo=parseFloat(m[1]),hi=parseFloat(m[2]);if(val<lo)return 'L';if(val>hi)return 'H';return 'N';}
+  return 'NA';
+}
+const FL={H:'H \u2191',L:'L \u2193',N:'Normal',POS:'POS',NEG:'NEG',EQ:'EQ',NA:'—'};
+const FC={H:'#dc2626',L:'#1d4ed8',N:'#15803d',POS:'#dc2626',NEG:'#15803d',EQ:'#d97706',NA:'#94a3b8'};
+function bd(f){return`<span class="badge b${f}">${FL[f]||f}</span>`;}
+function cf(f){return`<span class="lcf lc${f}">${FL[f]||f}</span>`;}
+
+// Multi-image
+function onImgUpload(e){Array.from(e.target.files).forEach(loadImg);}
+function onDrop(e){e.preventDefault();document.getElementById('drop-zone').classList.remove('drag');Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/')).forEach(loadImg);}
+function loadImg(file){const fr=new FileReader();fr.onload=ev=>{imgs.push({b64:ev.target.result,name:file.name});renderStrip();sync();};fr.readAsDataURL(file);}
+function renderStrip(){
+  const s=document.getElementById('img-strip');s.innerHTML='';
+  imgs.forEach((img,i)=>{
+    const d=document.createElement('div');d.className='img-thumb';
+    d.innerHTML=`<img src="${img.b64}"><button class="img-del" onclick="event.stopPropagation();delImg(${i})">✕</button>`;
+    s.appendChild(d);
+  });
+}
+function delImg(i){imgs.splice(i,1);renderStrip();sync();}
+function clearImgs(){imgs=[];renderStrip();sync();}
+
+
+// CARD SYNC
+function sync(){
+  const nm=document.getElementById('pet-name').value||'—';
+  const sp=document.getElementById('species').value;
+  const spT={dog:'สุนัข',cat:'แมว',rabbit:'กระต่าย',exotic:'Exotic',other:'อื่นๆ'}[sp]||sp;
+  const sx=document.getElementById('sex').value;
+  const br=document.getElementById('breed').value;
+  const ow=document.getElementById('owner').value||'—';
+  const hn=document.getElementById('hn').value;
+  const vt=document.getElementById('vet').value;
+  const dt=document.getElementById('exam-date').value;
+  const nt=document.getElementById('notes').value;
+  const lt=document.getElementById('lab-type').value;
+
+  document.getElementById('c-name').textContent=nm;
+  document.getElementById('c-sp').textContent=[spT,br,sx].filter(Boolean).join(' · ');
+  document.getElementById('c-owner').textContent=ow;
+  document.getElementById('c-hn').textContent=[hn?'HN: '+hn:'',vt].filter(Boolean).join(' · ')||'—';
+  if(dt){const d=new Date(dt+'T00:00:00');document.getElementById('c-date').textContent=d.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'});}
+  else document.getElementById('c-date').textContent='—';
+  document.getElementById('c-type').textContent=(P[lt]||P.other).label;
+
+  // Images
+  const ig=document.getElementById('c-img-grid'),is=document.getElementById('c-imgs');
+  ig.innerHTML='';
+  if(imgs.length){
+    imgs.forEach(img=>{const el=document.createElement('img');el.src=img.b64;el.style.maxHeight=imgs.length>1?'170px':'250px';ig.appendChild(el);});
+    is.style.display='block';
+  } else is.style.display='none';
+
+  // Params
+  const tb=document.getElementById('c-params');tb.innerHTML='';
+  rows.forEach(r=>{
+    if(!r.n)return;
+    const f=flag(r),col=FC[f]||'#0f172a',tr=document.createElement('tr');
+    tr.innerHTML=`<td class="tn">${r.n}</td><td class="tv" style="color:${col}">${r.v||'—'}</td><td class="tu">${r.u}</td><td class="tr">${r.ref}</td><td>${cf(f)}</td>`;
+    tb.appendChild(tr);
+  });
+
+  const nw=document.getElementById('c-notes'),ntx=document.getElementById('c-notes-txt');
+  if(nt.trim()){ntx.textContent=nt;nw.style.display='block';}else nw.style.display='none';
+  setTimeout(rescale,30);
+}
+
+function rescale(){
+  const fr=document.getElementById('prev-frame'),c=document.getElementById('lab-card');
+  const s=fr.clientWidth/800;c.style.transform=`scale(${s})`;c.style.transformOrigin='top left';
+  fr.style.height=(c.offsetHeight*s)+'px';
+}
+
+async function capture(){
+  const c=document.getElementById('lab-card');
+  const sv=c.style.transform;
+  c.style.transform='none';
+  try{
+    const cv=await html2canvas(c,{
+      scale:2,
+      useCORS:true,
+      allowTaint:true,
+      backgroundColor:'#ffffff',
+      logging:false,
+      imageTimeout:0,
+      onclone:function(d){d.getElementById('lab-card').style.transform='none';}
+    });
+    c.style.transform=sv;
+    return cv;
+  }catch(e){
+    c.style.transform=sv;
+    throw e;
+  }
+}
+
+async function doDownload(){
+  // Check html2canvas loaded
+  if(typeof html2canvas === 'undefined'){
+    toast('❌ html2canvas ยังโหลดไม่สำเร็จ — กรุณาเปิดด้วย browser ที่มีอินเทอร์เน็ต','terr');
+    return;
+  }
+  toast('⏳ กำลังสร้างไฟล์...');
+  try{
+    const cv=await capture();
+    const nm=document.getElementById('pet-name').value||'patient';
+    const dt=document.getElementById('exam-date').value||new Date().toISOString().split('T')[0];
+    const a=document.createElement('a');
+    a.download='PETiS_Lab_'+nm+'_'+dt+'.jpg';
+    a.href=cv.toDataURL('image/jpeg',0.95);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window._cv=cv;
+    toast('✅ Download สำเร็จ! นำไป attach ใน DRx ได้เลย','tok');
+  } catch(err){
+    toast('❌ '+err.message,'terr');
+    console.error('Download error:',err);
+  }
+}
+
+function toggleLine(){document.getElementById('line-panel').classList.toggle('open');}
+function saveTok(){localStorage.setItem('pt',document.getElementById('line-token').value);}
+function saveIbb(){localStorage.setItem('pi',document.getElementById('imgbb-key').value);}
+
+async function doSendLine(){
+  const tok=document.getElementById('line-token').value.trim();
+  const uid=document.getElementById('line-uid').value.trim();
+  const ibbk=document.getElementById('imgbb-key').value.trim();
+  const st=document.getElementById('line-status');
+  if(!tok){toast('❌ ใส่ Channel Access Token ก่อน','terr');return;}
+  if(!uid){toast('❌ ใส่ LINE User ID ก่อน','terr');return;}
+  if(!ibbk){toast('❌ ใส่ imgbb API Key ก่อน','terr');return;}
+  st.innerHTML='<span style="color:#64748b">⏳ กำลังสร้างรูป...</span>';
+  try{
+    const cv=await capture();const b64=cv.toDataURL('image/jpeg',0.92).split(',')[1];
+    st.innerHTML='<span style="color:#64748b">⏳ กำลัง upload รูป...</span>';
+    const fd=new FormData();fd.append('image',b64);
+    const ir=await fetch(`https://api.imgbb.com/1/upload?key=${ibbk}`,{method:'POST',body:fd});
+    const id=await ir.json();if(!id.success)throw new Error('imgbb upload ไม่สำเร็จ');
+    const url=id.data.url;
+    st.innerHTML='<span style="color:#64748b">⏳ กำลังส่ง LINE...</span>';
+    const nm=document.getElementById('pet-name').value||'สัตว์เลี้ยง';
+    const ow=document.getElementById('owner').value;
+    const msgs=[
+      {type:'text',text:`🐾 ผลการตรวจ Lab จาก PETiS Animal Hospital\n\nเรียน คุณ${ow}\nผลการตรวจของน้อง${nm} มาแล้วค่ะ กรุณาดูรายละเอียดในรูปด้านล่าง หากมีข้อสงสัยติดต่อสัตวแพทย์ได้เลยค่ะ 🙏`},
+      {type:'image',originalContentUrl:url,previewImageUrl:url}
+    ];
+    const lr=await fetch('https://api.line.me/v2/bot/message/push',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({to:uid,messages:msgs})});
+    if(lr.ok){st.innerHTML='<span style="color:#15803d;font-weight:700">✅ ส่ง LINE สำเร็จ!</span>';toast('✅ ส่ง LINE สำเร็จแล้ว!','tok');}
+    else{const er=await lr.json();throw new Error(er.message||'LINE error '+lr.status);}
+  }catch(err){st.innerHTML=`<span style="color:#dc2626">❌ ${err.message}</span>`;toast('❌ '+err.message,'terr');}
+}
+
+let _tt;
+function toast(msg,cls){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(cls||'');clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove('show'),4000);}
+</script>
+</body>
+</html>
